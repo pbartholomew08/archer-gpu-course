@@ -22,16 +22,19 @@ __global__ void inverseEdgeDetect(float d_output[N+2][N+2], float d_input[N+2][N
   int imageCol, imageRow;
  
   /*
-   * calculate global imageRow index for this thread  
+   * calculate global imageCol index for this thread  
    * from blockIdx.x, blockDim.x and threadIdx.x
-   * remember to add 1 to account for halo    
+   * remember to add 1 to account for halo.
+   *
+   * Per-thread imageCol enables coalesced loads from memory.    
    */
 
-  imageRow = blockIdx.x*blockDim.x + threadIdx.x + 1;
+  imageCol = blockIdx.x*blockDim.x + threadIdx.x + 1;
   /*
-   * loop over all columns of the image
+   * loop over all rows of the image - each thread performs
+   * a strided access - enabling coalesced loads.
    */
-  for (imageCol = 1; imageCol <= N; imageCol++) {
+  for (imageRow = 1; imageRow <= N; imageRow++) {
 
 
       /* perform stencil operation */
