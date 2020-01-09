@@ -117,15 +117,12 @@ if ( N%THREADSPERBLOCK != 0 ){
  
     cudaThreadSynchronize();
 
-
-    /* copy the output data from device to host */
-    cudaMemcpy(output, d_output, memSize, cudaMemcpyDeviceToHost);
-
-    /* copy this same data from host to input buffer on device */
-    /*  ready for the next iteration */ 
-    cudaMemcpy( d_input, output, memSize, cudaMemcpyHostToDevice);
-
+    /* Copy output to input on device, minimising data movement. */
+    cudaMemcpy( d_input, d_output, memSize, cudaMemcpyDeviceToDevice);
   }
+
+  /* copy the output data from device to host */
+  cudaMemcpy(output, d_output, memSize, cudaMemcpyDeviceToHost);
 
 
   end_time_inc_data = get_current_time();
