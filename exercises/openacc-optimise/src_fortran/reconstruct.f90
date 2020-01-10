@@ -74,9 +74,12 @@ program casestudy
   call system_clock(count_0, count_rate, count_max)
 
   do iter = 1, ITERATIONS !start main loop
+
+     !$acc parallel
      
      ! perform stencil operation
 
+     !$acc loop
      do j = 1, N
         do i = 1, N
            
@@ -85,9 +88,11 @@ program casestudy
            
         end do
      end do
+     !$acc end loop
      
      ! copy output back to input buffer
 
+     !$acc loop
      do j = 1, N
         do i = 1, N
            
@@ -95,7 +100,9 @@ program casestudy
            
         end do
      end do
-     
+     !$acc end loop
+
+     !$acc end parallel
      
   end do !end main loop
   
