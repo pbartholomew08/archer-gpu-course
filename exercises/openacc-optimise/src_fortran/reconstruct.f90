@@ -71,6 +71,8 @@ program casestudy
 
 
 
+  !$acc data copyin(old(:,:)) copyout(new(:,:))
+
   call system_clock(count_0, count_rate, count_max)
 
   do iter = 1, ITERATIONS !start main loop
@@ -106,8 +108,9 @@ program casestudy
      
   end do !end main loop
   
-  
   call system_clock(count_1, count_rate, count_max)
+  
+  !$acc end data
   
   write(*,*) "time: ", (count_1-count_0)*1.0/count_rate, "s"
   

@@ -99,94 +99,100 @@ int main( int argc, char* argv[] )
   Kokkos::initialize( argc, argv );
 
   // EXERCISE: Create views of the right size.
+  {
+    // 1. Device Views
+    typedef Kokkos::View<double*>   ViewVectorType;
+    typedef Kokkos::View<double**>  ViewMatrixType;
+    ViewVectorType y( "y", N );
+    ViewVectorType x( "x", M );
+    ViewMatrixType A( "A", N, M );
 
-  // 1. Device Views
-  // typedef Kokkos::View<double*>   ViewVectorType;
-  // typedef Kokkos::View<double**>  ViewMatrixType;
-  // ViewVectorType y( "y", N );
-  // ViewVectorType x( "x", M );
-  // ViewMatrixType A( "A", N, M );
+    /*
+    // EXERCISE: This no longer needs allocation after views introduced...
+    //   Hint: If arrays are not allocated, they also do not need to be deallocated below
+    // Allocate y, x vectors and Matrix A:
+    double * const y = new double[ N ];
+    double * const x = new double[ M ];
+    double * const A = new double[ N * M ];
+    */
 
-  // EXERCISE: This no longer needs allocation after views introduced...
-  //   Hint: If arrays are not allocated, they also do not need to be deallocated below
-  // Allocate y, x vectors and Matrix A:
-  double * const y = new double[ N ];
-  double * const x = new double[ M ];
-  double * const A = new double[ N * M ];
-
-  // Initialize y vector on host.
-  // EXERCISE: Convert y to 1D View's member access API: x(i)
-  for ( int i = 0; i < N; ++i ) {
-    y[ i ] = 1;
-  }
-
-  // Initialize x vector on host.
-  // EXERCISE: Convert x to 1D View's member access API: x(i)
-  for ( int i = 0; i < M; ++i ) {
-    x[ i ] = 1;
-  }
-
-  // Initialize A matrix on host, note 2D indexing computation.
-  // EXERCISE: convert 'A' to use View's member access API: A(j,i)
-  for ( int j = 0; j < N; ++j ) {
-    for ( int i = 0; i < M; ++i ) {
-      A[ j * M + i ] = 1;
+    // Initialize y vector on host.
+    // EXERCISE: Convert y to 1D View's member access API: x(i)
+    for ( int i = 0; i < N; ++i ) {
+      y(i) = 1;
     }
-  }
 
-  // Timer products.
-  struct timeval begin, end;
+    // Initialize x vector on host.
+    // EXERCISE: Convert x to 1D View's member access API: x(i)
+    for ( int i = 0; i < M; ++i ) {
+      x(i) = 1;
+    }
 
-  gettimeofday( &begin, NULL );
-
-  for ( int repeat = 0; repeat < nrepeat; repeat++ ) {
-    // Application: <y,Ax> = y^T*A*x
-    double result = 0;
-
-    Kokkos::parallel_reduce( N, KOKKOS_LAMBDA ( int j, double &update ) {
-      double temp2 = 0;
-
-      // EXERCISE: Replace access with view access operators.
+    // Initialize A matrix on host, note 2D indexing computation.
+    // EXERCISE: convert 'A' to use View's member access API: A(j,i)
+    for ( int j = 0; j < N; ++j ) {
       for ( int i = 0; i < M; ++i ) {
-        temp2 += A[ j * M + i ] * x[ i ];
+        A(i, j) = 1;
+      }
+    }
+
+    // Timer products.
+    struct timeval begin, end;
+
+    gettimeofday( &begin, NULL );
+
+    for ( int repeat = 0; repeat < nrepeat; repeat++ ) {
+      // Application: <y,Ax> = y^T*A*x
+      double result = 0;
+
+      Kokkos::parallel_reduce( N, KOKKOS_LAMBDA ( int j, double &update ) {
+        double temp2 = 0;
+
+        // EXERCISE: Replace access with view access operators.
+        for ( int i = 0; i < M; ++i ) {
+          temp2 += A(i, j) * x(i);
+        }
+
+        update += y(j) * temp2;
+      }, result );
+
+      // Output result.
+      if ( repeat == ( nrepeat - 1 ) ) {
+        printf( "  Computed result for %d x %d is %lf\n", N, M, result );
       }
 
-      update += y[ j ] * temp2;
-    }, result );
+      const double solution = (double) N * (double) M;
 
-    // Output result.
-    if ( repeat == ( nrepeat - 1 ) ) {
-      printf( "  Computed result for %d x %d is %lf\n", N, M, result );
+      if ( result != solution ) {
+        printf( "  Error: result( %lf ) != solution( %lf )\n", result, solution );
+      }
     }
 
-    const double solution = (double) N * (double) M;
+    gettimeofday( &end, NULL );
 
-    if ( result != solution ) {
-      printf( "  Error: result( %lf ) != solution( %lf )\n", result, solution );
-    }
-  }
+    // Calculate time.
+    double time = 1.0 * ( end.tv_sec - begin.tv_sec ) +
+                  1.0e-6 * ( end.tv_usec - begin.tv_usec );
 
-  gettimeofday( &end, NULL );
+    // Calculate bandwidth.
+    // Each matrix A row (each of length M) is read once.
+    // The x vector (of length M) is read N times.
+    // The y vector (of length N) is read once.
+    // double Gbytes = 1.0e-9 * double( sizeof(double) * ( 2 * M * N + N ) );
+    double Gbytes = 1.0e-9 * double( sizeof(double) * ( M + M * N + N ) );
 
-  // Calculate time.
-  double time = 1.0 * ( end.tv_sec - begin.tv_sec ) +
-                1.0e-6 * ( end.tv_usec - begin.tv_usec );
+    // Print results (problem size, time and bandwidth in GB/s).
+    printf( "  N( %d ) M( %d ) nrepeat ( %d ) problem( %g MB ) time( %g s ) bandwidth( %g GB/s )\n",
+            N, M, nrepeat, Gbytes * 1000, time, Gbytes * nrepeat / time );
 
-  // Calculate bandwidth.
-  // Each matrix A row (each of length M) is read once.
-  // The x vector (of length M) is read N times.
-  // The y vector (of length N) is read once.
-  // double Gbytes = 1.0e-9 * double( sizeof(double) * ( 2 * M * N + N ) );
-  double Gbytes = 1.0e-9 * double( sizeof(double) * ( M + M * N + N ) );
-
-  // Print results (problem size, time and bandwidth in GB/s).
-  printf( "  N( %d ) M( %d ) nrepeat ( %d ) problem( %g MB ) time( %g s ) bandwidth( %g GB/s )\n",
-          N, M, nrepeat, Gbytes * 1000, time, Gbytes * nrepeat / time );
-
-  delete [] y;  //EXERCISE hint: ...
-  delete [] x;  //EXERCISE hint: ...
-  delete [] A;  //EXERCISE hint: ...
-
+    /*
+    delete [] y;  //EXERCISE hint: ...
+    delete [] x;  //EXERCISE hint: ...
+    delete [] A;  //EXERCISE hint: ...
+    */
+  } // Structured block enclosing the lifetime of the views - allows Kokkos to do reference counting
+ 
+  // XXX finalize must be called after all lifetimes are over!
   Kokkos::finalize();
 
   return 0;

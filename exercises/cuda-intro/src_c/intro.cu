@@ -105,6 +105,7 @@ int main(int argc, char *argv[]) {
   else if ((rem < 0) || !num_blocks)
   {
     printf("ERROR: THREADS_PER_BLOCK is too big!");
+    exit(EXIT_FAILURE);
   }
 
   dim3 blocksPerGrid(num_blocks, 1, 1);
